@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================
+// UTILISATEURS
+// ============================
+model User {
+  id            String   @id @default(cuid())
+  telegramId    String   @unique
+  username      String?
+  firstName     String?
+  lastName      String?
+
+  balance       Float    @default(0)      // solde PEPE actuel
+  totalMined    Float    @default(0)      // total PEPE miné depuis le début
+  totalWithdrawn Float   @default(0)      // total PEPE retiré
+
+  lastClaimAt   DateTime?                 // pour gérer le cooldown 60 min
+
+  faucetpayEmail String?                  // email/ID FaucetPay pour retrait
+
+  isBlocked     Boolean  @default(false)
+  isDeleted     Boolean  @default(false)
+
+  // Parrainage
+  referredById  String?
+  referredBy    User?    @relation("Referrals", fields: [referredById], references: [id])
+  referrals     User[]   @relation("Referrals")
+
+  claims        Claim[]
+  withdrawals   Withdrawal[]
+
+  // Commissions reçues en tant que parrain (niveau 1, 2 ou 3)
+  commissionsEarned ReferralCommission[] @relation("CommissionReceiver")
+  // Commissions générées par les claims de cet user (pour ses parrains)
+  commissionsGenerated ReferralCommission[] @relation("CommissionSource")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([referredById])
+  @@index([telegramId])
+}
+
+// ============================
+// RECLAMATIONS (MINAGE)
+// ============================
+model Claim {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  amount    Float    // montant PEPE gagné (snapshot, au cas où le montant change plus tard)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ============================
+// COMMISSIONS DE PARRAINAGE
+// ============================
+model ReferralCommission {
+  id            String   @id @default(cuid())
+
+  // Qui reçoit la commission (le parrain à un des 3 niveaux)
+  receiverId    String
+  receiver      User     @relation("CommissionReceiver", fields: [receiverId], references: [id])
+
+  // Qui a généré la commission (le filleul qui a claim)
+  sourceUserId  String
+  sourceUser    User     @relation("CommissionSource", fields: [sourceUserId], references: [id])
+
+  level         Int      // 1, 2 ou 3
+  amount        Float    // montant PEPE gagné en commission
+
+  createdAt     DateTime @default(now())
+
+  @@index([receiverId])
+  @@index([sourceUserId])
+}
+
+// ============================
+// RETRAITS
+// ============================
+enum WithdrawalStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+model Withdrawal {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id])
+
+  amount          Float            // montant PEPE demandé
+  faucetpayEmail  String
+
+  status          WithdrawalStatus @default(PENDING)
+  faucetpayTxId   String?          // ID de transaction retourné par FaucetPay
+  errorMessage    String?
+
+  createdAt       DateTime         @default(now())
+  processedAt     DateTime?
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ============================
+// PARAMETRES GLOBAUX (modifiables via dashboard admin)
+// ============================
+model Settings {
+  id                    String   @id @default("global") // une seule ligne, id fixe
+
+  claimAmount           Float    @default(350)   // PEPE par réclamation
+  claimCooldownMinutes  Int      @default(60)     // cooldown en minutes
+
+  refLevel1Percent      Float    @default(20)     // %
+  refLevel2Percent      Float    @default(10)     // %
+  refLevel3Percent      Float    @default(5)      // %
+
+  minWithdrawal         Float    @default(1200)   // minimum de retrait
+
+  updatedAt             DateTime @updatedAt
+}
+
+// ============================
+// ADMINISTRATEURS
+// ============================
+enum AdminRole {
+  SUPER_ADMIN
+  CO_ADMIN
+}
+
+model Admin {
+  id          String    @id @default(cuid())
+  telegramId  String    @unique
+  username    String?
+
+  role        AdminRole @default(CO_ADMIN)
+
+  addedById   String?   // qui a ajouté ce co-admin (pour traçabilité)
+
+  createdAt   DateTime  @default(now())
+}

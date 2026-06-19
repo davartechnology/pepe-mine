@@ -1,65 +1,189 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+
+declare global {
+  interface Window {
+    Telegram: any;
+    show_9999999?: () => Promise<void>; // placeholder Monetag, remplacé à l'étape Monetag
+  }
+}
+
+interface UserData {
+  id: string;
+  telegramId: string;
+  username?: string;
+  firstName?: string;
+  balance: number;
+  totalMined: number;
+  lastClaimAt: string | null;
+}
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+  const [user, setUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
+  const [cooldownMs, setCooldownMs] = useState(0);
+  const [message, setMessage] = useState<string | null>(null);
+  const [initData, setInitData] = useState<string>("");
+
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      setInitData(tg.initData);
+      const referralCode = tg.initDataUnsafe?.start_param;
+      authenticate(tg.initData, referralCode);
+    } else {
+      setMessage("⚠️ Ouvre cette application depuis Telegram");
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (cooldownMs <= 0) return;
+    const interval = setInterval(() => {
+      setCooldownMs((prev) => Math.max(0, prev - 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownMs]);
+
+  async function authenticate(initDataStr: string, referralCode?: string) {
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData: initDataStr, referralCode }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMessage(data.error || "Erreur d'authentification");
+        setLoading(false);
+        return;
+      }
+
+      setUser(data.user);
+
+      if (data.user.lastClaimAt) {
+        const lastClaim = new Date(data.user.lastClaimAt).getTime();
+        const cooldownEnd = lastClaim + 60 * 60 * 1000;
+        const remaining = cooldownEnd - Date.now();
+        if (remaining > 0) setCooldownMs(remaining);
+      }
+    } catch (err) {
+      setMessage("Erreur de connexion au serveur");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleClaim = useCallback(async () => {
+    if (!initData || claiming || cooldownMs > 0) return;
+
+    setClaiming(true);
+    setMessage(null);
+
+    try {
+      if (typeof window.show_9999999 === "function") {
+        await window.show_9999999();
+      }
+
+      const res = await fetch("/api/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.remainingMs) {
+          setCooldownMs(data.remainingMs);
+        }
+        setMessage(data.error || "Erreur lors de la réclamation");
+        return;
+      }
+
+      setUser((prev) =>
+        prev ? { ...prev, balance: data.newBalance } : prev
+      );
+      setCooldownMs(60 * 60 * 1000);
+      setMessage(`✅ +${data.claimedAmount} PEPE minés !`);
+    } catch (err) {
+      setMessage("Erreur réseau, réessaie");
+    } finally {
+      setClaiming(false);
+    }
+  }, [initData, claiming, cooldownMs]);
+
+  function formatCooldown(ms: number) {
+    const totalSeconds = Math.ceil(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black text-green-400">
+        <p>Chargement...</p>
       </main>
-    </div>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col items-center bg-black text-white px-4 py-8">
+      <h1 className="text-3xl font-bold text-green-400 mb-1">🐸 PEPE MINE</h1>
+      <p className="text-sm text-gray-400 mb-8">Mine, partage, retire.</p>
+
+      {user ? (
+        <>
+          <div className="w-full max-w-sm bg-zinc-900 border border-green-500/30 rounded-2xl p-6 mb-6 text-center">
+            <p className="text-gray-400 text-sm mb-1">Solde</p>
+            <p className="text-4xl font-bold text-green-400">
+              {user.balance.toLocaleString()} <span className="text-lg">PEPE</span>
+            </p>
+            <p className="text-gray-500 text-xs mt-2">
+              Total miné : {user.totalMined.toLocaleString()} PEPE
+            </p>
+          </div>
+
+          <button
+            onClick={handleClaim}
+            disabled={claiming || cooldownMs > 0}
+            className={`w-full max-w-sm py-4 rounded-2xl font-bold text-lg transition ${
+              cooldownMs > 0
+                ? "bg-zinc-800 text-gray-500 cursor-not-allowed"
+                : "bg-green-500 text-black active:scale-95"
+            }`}
+          >
+            {claiming
+              ? "Minage en cours..."
+              : cooldownMs > 0
+              ? `⏱ ${formatCooldown(cooldownMs)}`
+              : "⛏️ Miner 350 PEPE"}
+          </button>
+
+          {message && (
+            <p className="mt-4 text-sm text-center text-green-300">{message}</p>
+          )}
+
+          <div className="w-full max-w-sm grid grid-cols-2 gap-3 mt-8">
+            <a href="/referral" className="bg-zinc-900 border border-zinc-700 rounded-xl py-3 text-center text-sm">
+              👥 Parrainage
+            </a>
+            <a href="/withdraw" className="bg-zinc-900 border border-zinc-700 rounded-xl py-3 text-center text-sm">
+              💸 Retrait
+            </a>
+            <a href="/history" className="bg-zinc-900 border border-zinc-700 rounded-xl py-3 text-center text-sm col-span-2">
+              📜 Historique
+            </a>
+          </div>
+        </>
+      ) : (
+        <p className="text-red-400">{message}</p>
+      )}
+    </main>
   );
 }
