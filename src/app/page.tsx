@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react";
 declare global {
   interface Window {
     Telegram: any;
-    show_9999999?: () => Promise<void>; // placeholder Monetag, remplacé à l'étape Monetag
+    show_11174625?: (config?: any) => Promise<void>; // SDK Monetag (Zone ID 11174625)
   }
 }
 
@@ -86,8 +86,18 @@ export default function Home() {
     setMessage(null);
 
     try {
-      if (typeof window.show_9999999 === "function") {
-        await window.show_9999999();
+      // Monetag - Interstitial In-App (Zone ID 11174625)
+      if (typeof window.show_11174625 === "function") {
+        await window.show_11174625({
+          type: "inApp",
+          inAppSettings: {
+            frequency: 2,
+            capping: 0.1,
+            interval: 30,
+            timeout: 5,
+            everyPage: false,
+          },
+        });
       }
 
       const res = await fetch("/api/claim", {
