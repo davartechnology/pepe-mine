@@ -1,48 +1,48 @@
-import jwt from "jsonwebtoken";
-import { NextRequest } from "next/server";
-import { prisma } from "./prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { signAdminSession, ADMIN_COOKIE_NAME } from "@/lib/admin-auth";
 
-interface AdminSession {
-  adminId: string;
-  telegramId: string;
-  role: "SUPER_ADMIN" | "CO_ADMIN";
-}
+export async function POST(req: NextRequest) {
+  try {
+    const { telegramId, password } = await req.json();
 
-const COOKIE_NAME = "admin_session";
+    if (!telegramId || !password) {
+      return NextResponse.json({ error: "Identifiants manquants" }, { status: 400 });
+    }
 
-export function signAdminSession(payload: AdminSession): string {
-  const secret = process.env.ADMIN_JWT_SECRET;
-  if (!secret) throw new Error("ADMIN_JWT_SECRET manquant");
-  return jwt.sign(payload, secret, { expiresIn: "7d" });
-}
+    if (password !== process.env.ADMIN_PASSWORD) {
+      return NextResponse.json({ error: "Mot de passe incorrect" }, { status: 401 });
+    }
 
-export function verifyAdminToken(token: string): AdminSession {
-  const secret = process.env.ADMIN_JWT_SECRET;
-  if (!secret) throw new Error("ADMIN_JWT_SECRET manquant");
-  return jwt.verify(token, secret) as AdminSession;
-}
+    const admin = await prisma.admin.findUnique({
+      where: { telegramId: telegramId.toString() },
+    });
 
-export const ADMIN_COOKIE_NAME = COOKIE_NAME;
+    if (!admin) {
+      return NextResponse.json(
+        { error: "Ce Telegram ID n'est pas administrateur" },
+        { status: 403 }
+      );
+    }
 
-/**
- * Récupère et vérifie la session admin depuis les cookies d'une requête API.
- * Lance une erreur si non authentifié.
- */
-export async function requireAdmin(req: NextRequest): Promise<AdminSession> {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  if (!token) throw new Error("Non authentifié");
+    const token = signAdminSession({
+      adminId: admin.id,
+      telegramId: admin.telegramId,
+      role: admin.role,
+    });
 
-  const session = verifyAdminToken(token);
+    const res = NextResponse.json({ success: true, role: admin.role });
+    res.cookies.set(ADMIN_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60,
+      path: "/",
+    });
 
-  // Vérifie que l'admin existe toujours en base (au cas où il aurait été retiré entre temps)
-  const admin = await prisma.admin.findUnique({ where: { id: session.adminId } });
-  if (!admin) throw new Error("Session invalide");
-
-  return session;
-}
-
-export function requireSuperAdmin(session: AdminSession) {
-  if (session.role !== "SUPER_ADMIN") {
-    throw new Error("Action réservée au super-admin");
+    return res;
+  } catch (err: any) {
+    console.error("Erreur admin login:", err.message);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
