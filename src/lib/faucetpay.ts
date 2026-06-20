@@ -6,7 +6,7 @@ const PEPE_DECIMALS = 8;
 interface FaucetPayResponse {
   status: number;
   message: string;
-  payout_id?: string;
+  payout_id?: string | number;
   payout_user_hash?: string;
   balance?: string;
 }

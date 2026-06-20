@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
           where: { id: withdrawal.id },
           data: {
             status: "COMPLETED",
-            faucetpayTxId: result.payout_id,
+            faucetpayTxId: result.payout_id ? String(result.payout_id) : null,
             processedAt: new Date(),
           },
         });
