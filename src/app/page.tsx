@@ -34,7 +34,19 @@ export default function Home() {
       tg.ready();
       tg.expand();
       setInitData(tg.initData);
-      const referralCode = tg.initDataUnsafe?.start_param;
+
+      // Le start_param "officiel" de Telegram (fonctionne uniquement pour les liens
+      // t.me/bot/appname?startapp=xxx natifs)
+      const startParamOfficial = tg.initDataUnsafe?.start_param;
+
+      // Fallback : on lit directement le paramètre dans l'URL de la page,
+      // car notre bot construit le lien manuellement avec ?startapp=xxx
+      const urlParams = new URLSearchParams(window.location.search);
+      const startParamFromUrl =
+        urlParams.get("startapp") || urlParams.get("tgWebAppStartParam");
+
+      const referralCode = startParamOfficial || startParamFromUrl || undefined;
+
       authenticate(tg.initData, referralCode);
     } else {
       setMessage("⚠️ Ouvre cette application depuis Telegram");
@@ -169,7 +181,7 @@ export default function Home() {
               ? "Minage en cours..."
               : cooldownMs > 0
               ? `⏱ ${formatCooldown(cooldownMs)}`
-              : "⛏️ Miner 350 PEPE"}
+              : "⛏️ Miner 200 PEPE"}
           </button>
 
           {message && (
