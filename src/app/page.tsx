@@ -86,18 +86,17 @@ export default function Home() {
     setMessage(null);
 
     try {
-      // Monetag - Interstitial In-App (Zone ID 11174625)
+      // Monetag - Format Rewarded (Zone ID 11174625)
+      // La promesse ne se résout QUE si la pub est entièrement visionnée.
+      // Si l'user quitte trop tôt ou si aucune pub n'est dispo, ça rejette -> pas de claim.
       if (typeof window.show_11174625 === "function") {
-        await window.show_11174625({
-          type: "inApp",
-          inAppSettings: {
-            frequency: 2,
-            capping: 0.1,
-            interval: 30,
-            timeout: 5,
-            everyPage: false,
-          },
-        });
+        try {
+          await window.show_11174625();
+        } catch (adErr) {
+          setMessage("⚠️ Regarde la publicité en entier pour miner du PEPE");
+          setClaiming(false);
+          return;
+        }
       }
 
       const res = await fetch("/api/claim", {
