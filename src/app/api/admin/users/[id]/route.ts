@@ -4,10 +4,11 @@ import { requireAdmin } from "@/lib/admin-auth";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin(req);
+    const { id } = await context.params;
     const body = await req.json();
 
     const data: Record<string, any> = {};
@@ -16,7 +17,7 @@ export async function PATCH(
     if (typeof body.balance === "number") data.balance = body.balance;
 
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data,
     });
 
@@ -29,14 +30,14 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin(req);
+    const { id } = await context.params;
 
-    // Soft delete : on garde l'historique financier intact pour la comptabilité
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: { isDeleted: true, isBlocked: true },
     });
 

@@ -4,18 +4,17 @@ import { requireAdmin } from "@/lib/admin-auth";
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin(req);
+    const { id } = await context.params;
 
-    const target = await prisma.admin.findUnique({ where: { id: params.id } });
+    const target = await prisma.admin.findUnique({ where: { id } });
     if (!target) {
       return NextResponse.json({ error: "Admin introuvable" }, { status: 404 });
     }
 
-    // RÈGLE DE SÉCURITÉ ABSOLUE : le SUPER_ADMIN ne peut jamais être retiré,
-    // peu importe qui fait la demande (même un autre co-admin ou via API directe).
     if (target.role === "SUPER_ADMIN") {
       return NextResponse.json(
         { error: "Le super-admin ne peut pas être retiré" },
@@ -23,7 +22,7 @@ export async function DELETE(
       );
     }
 
-    await prisma.admin.delete({ where: { id: params.id } });
+    await prisma.admin.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (err: any) {
