@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AdBanner from "@/components/AdBanner";
 
 export default function WithdrawPage() {
   const [balance, setBalance] = useState(0);
@@ -124,6 +125,8 @@ export default function WithdrawPage() {
           {message.text}
         </p>
       )}
+
+      <AdBanner adKey="efc8eae7c8e7d236f7bf531d02d12e8d" />
     </main>
   );
 }

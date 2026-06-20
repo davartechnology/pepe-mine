@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       remainingCooldownMs = Math.max(0, cooldownEnd - Date.now());
     }
 
-    return NextResponse.json({ user, remainingCooldownMs, claimAmount: settings?.claimAmount ?? 300 });
+    return NextResponse.json({ user, remainingCooldownMs, claimAmount: settings?.claimAmount ?? 200 });
   } catch (err: any) {
     console.error("Erreur auth:", err.message);
     return NextResponse.json({ error: err.message }, { status: 401 });

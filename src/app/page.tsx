@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import AdBanner from "@/components/AdBanner";
 
 declare global {
   interface Window {
@@ -168,7 +169,7 @@ export default function Home() {
               ? "Minage en cours..."
               : cooldownMs > 0
               ? `⏱ ${formatCooldown(cooldownMs)}`
-              : "⛏️ Miner 300 PEPE"}
+              : "⛏️ Miner 350 PEPE"}
           </button>
 
           {message && (
@@ -186,6 +187,8 @@ export default function Home() {
               📜 Historique
             </a>
           </div>
+
+          <AdBanner adKey="efc8eae7c8e7d236f7bf531d02d12e8d" />
         </>
       ) : (
         <p className="text-red-400">{message}</p>

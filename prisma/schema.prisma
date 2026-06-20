@@ -121,7 +121,7 @@ model Withdrawal {
 model Settings {
   id                    String   @id @default("global") // une seule ligne, id fixe
 
-  claimAmount           Float    @default(300)   // PEPE par réclamation
+  claimAmount           Float    @default(200)   // PEPE par réclamation
   claimCooldownMinutes  Int      @default(60)     // cooldown en minutes
 
   refLevel1Percent      Float    @default(20)     // %
