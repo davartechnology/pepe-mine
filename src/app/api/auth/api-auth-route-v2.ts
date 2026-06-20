@@ -11,16 +11,14 @@ export async function POST(req: NextRequest) {
     }
 
     const { user: tgUser } = validateTelegramInitData(initData);
-
     const telegramId = tgUser.id.toString();
 
-    // Cherche si l'utilisateur existe déjà
-    let user = await prisma.user.findUnique({
-      where: { telegramId },
-    });
+    const settings = await prisma.settings.findUnique({ where: { id: "global" } });
+    const cooldownMinutes = settings?.claimCooldownMinutes ?? 60;
+
+    let user = await prisma.user.findUnique({ where: { telegramId } });
 
     if (!user) {
-      // Nouvel utilisateur : on gère le parrainage si un referralCode est fourni
       let referredById: string | null = null;
 
       if (referralCode) {
@@ -42,7 +40,6 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
-      // Utilisateur existant : on bloque l'accès si banni/supprimé
       if (user.isBlocked) {
         return NextResponse.json({ error: "Compte bloqué" }, { status: 403 });
       }
@@ -50,7 +47,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Compte supprimé" }, { status: 403 });
       }
 
-      // Mise à jour des infos de profil au cas où elles ont changé
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -61,7 +57,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ user });
+    // Calcul autoritaire du cooldown restant (en millisecondes), basé sur le serveur
+    let remainingCooldownMs = 0;
+    if (user.lastClaimAt) {
+      const cooldownEnd = user.lastClaimAt.getTime() + cooldownMinutes * 60 * 1000;
+      remainingCooldownMs = Math.max(0, cooldownEnd - Date.now());
+    }
+
+    return NextResponse.json({ user, remainingCooldownMs, claimAmount: settings?.claimAmount ?? 350 });
   } catch (err: any) {
     console.error("Erreur auth:", err.message);
     return NextResponse.json({ error: err.message }, { status: 401 });

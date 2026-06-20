@@ -65,13 +65,7 @@ export default function Home() {
       }
 
       setUser(data.user);
-
-      if (data.user.lastClaimAt) {
-        const lastClaim = new Date(data.user.lastClaimAt).getTime();
-        const cooldownEnd = lastClaim + 60 * 60 * 1000;
-        const remaining = cooldownEnd - Date.now();
-        if (remaining > 0) setCooldownMs(remaining);
-      }
+      setCooldownMs(data.remainingCooldownMs || 0);
     } catch (err) {
       setMessage("Erreur de connexion au serveur");
     } finally {
@@ -117,7 +111,10 @@ export default function Home() {
       setUser((prev) =>
         prev ? { ...prev, balance: data.newBalance } : prev
       );
-      setCooldownMs(60 * 60 * 1000);
+      const nextClaimMs = data.nextClaimAt
+        ? Math.max(0, new Date(data.nextClaimAt).getTime() - Date.now())
+        : 60 * 60 * 1000;
+      setCooldownMs(nextClaimMs);
       setMessage(`✅ +${data.claimedAmount} PEPE minés !`);
     } catch (err) {
       setMessage("Erreur réseau, réessaie");
