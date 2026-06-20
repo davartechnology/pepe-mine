@@ -22,7 +22,7 @@ bot.start((ctx) => {
   ctx.reply(
     `🐸 Bienvenue sur *PEPE MINE* !\n\n` +
       `Mine des PEPE gratuitement en regardant des publicités, et retire directement vers ton compte FaucetPay.\n\n` +
-      `💰 350 PEPE par réclamation\n` +
+      `💰 300 PEPE par réclamation\n` +
       `⏱ Toutes les 60 minutes\n` +
       `👥 Gagne aussi en parrainant tes amis (20% / 10% / 5%)\n\n` +
       `Clique ci-dessous pour commencer 👇`,

@@ -65,7 +65,7 @@ CREATE TABLE "Withdrawal" (
 -- CreateTable
 CREATE TABLE "Settings" (
     "id" TEXT NOT NULL DEFAULT 'global',
-    "claimAmount" DOUBLE PRECISION NOT NULL DEFAULT 350,
+    "claimAmount" DOUBLE PRECISION NOT NULL DEFAULT 300,
     "claimCooldownMinutes" INTEGER NOT NULL DEFAULT 60,
     "refLevel1Percent" DOUBLE PRECISION NOT NULL DEFAULT 20,
     "refLevel2Percent" DOUBLE PRECISION NOT NULL DEFAULT 10,
