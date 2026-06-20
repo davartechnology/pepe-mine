@@ -1,5 +1,8 @@
 const FAUCETPAY_API_URL = "https://faucetpay.io/api/v1/send";
 
+// FaucetPay attend les montants dans la plus petite unité (8 décimales pour la plupart des tokens, dont PEPE)
+const PEPE_DECIMALS = 8;
+
 interface FaucetPayResponse {
   status: number;
   message: string;
@@ -10,8 +13,8 @@ interface FaucetPayResponse {
 
 /**
  * Envoie un paiement réel via FaucetPay.
- * amount doit être dans la plus petite unité acceptée par FaucetPay pour PEPE
- * (vérifie la doc FaucetPay : certains tokens utilisent des décimales spécifiques).
+ * `amount` est fourni en PEPE "humain" (ex: 1700), converti automatiquement
+ * vers la plus petite unité attendue par l'API.
  */
 export async function sendFaucetPayPayout(
   toAddressOrEmail: string,
@@ -22,10 +25,13 @@ export async function sendFaucetPayPayout(
     throw new Error("FAUCETPAY_API_KEY manquant");
   }
 
+  // Conversion vers la plus petite unité (évite les erreurs de virgule flottante avec Math.round)
+  const amountInSmallestUnit = Math.round(amount * Math.pow(10, PEPE_DECIMALS));
+
   const params = new URLSearchParams({
     api_key: apiKey,
     to: toAddressOrEmail,
-    amount: amount.toString(),
+    amount: amountInSmallestUnit.toString(),
     currency: "PEPE",
   });
 
@@ -35,6 +41,18 @@ export async function sendFaucetPayPayout(
     body: params.toString(),
   });
 
-  const data: FaucetPayResponse = await res.json();
-  return data;
+  const raw = await res.json();
+
+  // Parsing robuste : FaucetPay peut renvoyer status en string ou en number selon les cas.
+  // On normalise pour ne JAMAIS rater un succès réel (ce qui causerait un remboursement
+  // alors que l'argent a déjà été envoyé - le pire scénario possible).
+  const normalizedStatus = Number(raw.status);
+
+  return {
+    status: normalizedStatus,
+    message: raw.message ?? "Réponse inconnue de FaucetPay",
+    payout_id: raw.payout_id,
+    payout_user_hash: raw.payout_user_hash,
+    balance: raw.balance,
+  };
 }

@@ -30,19 +30,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Compte bloqué" }, { status: 403 });
     }
 
+    // Protection anti-double-soumission : si une demande est déjà en cours, on bloque
+    const existingPending = await prisma.withdrawal.findFirst({
+      where: { userId: user.id, status: "PENDING" },
+    });
+    if (existingPending) {
+      return NextResponse.json(
+        { error: "Un retrait est déjà en cours de traitement, patiente." },
+        { status: 409 }
+      );
+    }
+
     if (user.balance < settings.minWithdrawal) {
       return NextResponse.json(
-        {
-          error: `Solde insuffisant. Minimum : ${settings.minWithdrawal} PEPE`,
-        },
+        { error: `Solde insuffisant. Minimum : ${settings.minWithdrawal} PEPE` },
         { status: 400 }
       );
     }
 
-    const amountToWithdraw = user.balance; // retrait du solde total disponible
+    const amountToWithdraw = user.balance;
 
-    // 1. Créer la demande de retrait en PENDING + débiter immédiatement
-    //    (évite qu'un utilisateur claim/double-clique pendant le traitement)
     const withdrawal = await prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
         where: { id: user.id },
@@ -67,9 +74,9 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    // 2. Appel réel à FaucetPay
     try {
       const result = await sendFaucetPayPayout(faucetpayEmail, amountToWithdraw);
+      console.log("Réponse FaucetPay:", JSON.stringify(result));
 
       if (result.status === 200) {
         await prisma.withdrawal.update({
@@ -87,7 +94,6 @@ export async function POST(req: NextRequest) {
           amount: amountToWithdraw,
         });
       } else {
-        // Échec FaucetPay : on rembourse l'utilisateur
         await prisma.$transaction([
           prisma.user.update({
             where: { id: user.id },
@@ -98,10 +104,7 @@ export async function POST(req: NextRequest) {
           }),
           prisma.withdrawal.update({
             where: { id: withdrawal.id },
-            data: {
-              status: "FAILED",
-              errorMessage: result.message,
-            },
+            data: { status: "FAILED", errorMessage: result.message },
           }),
         ]);
 
@@ -111,25 +114,22 @@ export async function POST(req: NextRequest) {
         );
       }
     } catch (faucetErr: any) {
-      // Erreur réseau/API : on rembourse aussi, et on marque PENDING pour vérif manuelle admin
+      console.error("Erreur appel FaucetPay:", faucetErr.message);
+
+      // En cas d'erreur réseau/timeout, on NE SAIT PAS si le paiement est passé côté FaucetPay.
+      // On laisse en PENDING pour vérification manuelle admin au lieu de rembourser automatiquement
+      // (rembourser automatiquement ici pourrait permettre un double paiement si l'appel a en fait réussi).
       await prisma.withdrawal.update({
         where: { id: withdrawal.id },
-        data: {
-          status: "FAILED",
-          errorMessage: faucetErr.message,
-        },
-      });
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          balance: { increment: amountToWithdraw },
-          totalWithdrawn: { decrement: amountToWithdraw },
-        },
+        data: { errorMessage: `À vérifier manuellement: ${faucetErr.message}` },
       });
 
       return NextResponse.json(
-        { error: "Erreur lors du paiement, ton solde a été restauré. Réessaie." },
-        { status: 500 }
+        {
+          error:
+            "Ton retrait est en cours de vérification, contacte le support si tu ne reçois rien sous 24h.",
+        },
+        { status: 202 }
       );
     }
   } catch (err: any) {
