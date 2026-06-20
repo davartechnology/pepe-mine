@@ -181,7 +181,7 @@ export default function Home() {
               ? "Minage en cours..."
               : cooldownMs > 0
               ? `⏱ ${formatCooldown(cooldownMs)}`
-              : "⛏️ Miner 200 PEPE"}
+              : "⛏️ Reclamer 200 PEPE"}
           </button>
 
           {message && (
