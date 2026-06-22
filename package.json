@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "bot" : "tsx bot/dev.ts"
+    "bot" : "tsx bot/dev.ts",
+    "set-webhook": "tsx bot/set-webhook.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
