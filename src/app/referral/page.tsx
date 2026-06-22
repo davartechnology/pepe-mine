@@ -35,7 +35,7 @@ export default function ReferralPage() {
   }, []);
 
   const inviteLink = data
-  ? `https://t.me/${botUsername}/${process.env.NEXT_PUBLIC_APP_SHORT_NAME || "pepemine"}?startapp=${data.telegramId}`
+  ? `https://t.me/${botUsername}?start=${data.telegramId}`
   : "";
 
   function copyLink() {
