@@ -35,8 +35,8 @@ export default function ReferralPage() {
   }, []);
 
   const inviteLink = data
-  ? `https://t.me/${botUsername}?start=${data.telegramId}`
-  : "";
+    ? `https://t.me/${botUsername}?start=${data.telegramId}`
+    : "";
 
   function copyLink() {
     navigator.clipboard.writeText(inviteLink);

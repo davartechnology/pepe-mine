@@ -12,45 +12,30 @@ if (!BOT_TOKEN) {
 
 export const bot = new Telegraf(BOT_TOKEN);
 
-// Enregistrement automatique des commandes visibles dans Telegram
-bot.telegram.setMyCommands([
-  { command: "start", description: "🚀 Lancer PEPE MINE" },
-  { command: "invite", description: "🔗 Obtenir mon lien de parrainage" },
-  { command: "balance", description: "💰 Voir mon solde" },
-  { command: "help", description: "📖 Aide" },
-]);
-
 bot.start(async (ctx) => {
-  const payload = ctx.startPayload; // contient le telegramId du parrain si lien de parrainage
+  const payload = ctx.startPayload;
 
-  // Le bouton Mini App utilise le format natif avec startapp
-  // pour transmettre fiablement le code de parrainage via tg.initDataUnsafe.start_param
-  const miniAppUrl = payload
+  // ✅ Format natif Telegram Mini App — transmet startapp via tg.initDataUnsafe.start_param
+  const webAppUrl = payload
     ? `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=${payload}`
     : `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}`;
 
-  const welcomeText = payload
-    ? `🐸 Bienvenue sur *PEPE MINE* !\n\n` +
-      `Tu as été invité par un ami 🎉\n\n` +
-      `Mine des PEPE gratuitement en regardant des publicités, et retire directement vers ton compte FaucetPay.\n\n` +
-      `💰 300 PEPE par réclamation\n` +
-      `⏱ Toutes les 60 minutes\n` +
-      `👥 Gagne aussi en parrainant tes amis (20% / 10% / 5%)\n\n` +
-      `Clique ci-dessous pour commencer et ton ami recevra sa commission 👇`
-    : `🐸 Bienvenue sur *PEPE MINE* !\n\n` +
-      `Mine des PEPE gratuitement en regardant des publicités, et retire directement vers ton compte FaucetPay.\n\n` +
-      `💰 300 PEPE par réclamation\n` +
-      `⏱ Toutes les 60 minutes\n` +
-      `👥 Gagne aussi en parrainant tes amis (20% / 10% / 5%)\n\n` +
-      `Clique ci-dessous pour commencer 👇`;
-
   try {
-    await ctx.reply(welcomeText, {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard([
-        Markup.button.webApp("🚀 Lancer PEPE MINE", miniAppUrl),
-      ]),
-    });
+    await ctx.reply(
+      `🐸 Bienvenue sur *PEPE MINE* !\n\n` +
+        `Mine des PEPE gratuitement en regardant des publicités, et retire directement vers ton compte FaucetPay.\n\n` +
+        `💰 300 PEPE par réclamation\n` +
+        `⏱ Toutes les 60 minutes\n` +
+        `👥 Gagne aussi en parrainant tes amis (20% / 10% / 5%)\n\n` +
+        `Clique ci-dessous pour commencer 👇`,
+      {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard([
+          // ✅ Utilise webAppUrl (format natif) et non directUrl
+          Markup.button.webApp("🚀 Lancer PEPE MINE", webAppUrl),
+        ]),
+      }
+    );
   } catch (err) {
     console.error("Erreur reply start:", err);
   }
@@ -70,17 +55,12 @@ bot.help((ctx) => {
 bot.command("invite", async (ctx) => {
   const telegramId = ctx.from.id.toString();
 
-  // Le lien de parrainage pointe vers le BOT (pas directement la mini app)
-  // Ainsi l'user voit le message de bienvenue avant d'ouvrir la mini app
-  const inviteLink = `https://t.me/${BOT_USERNAME}?start=${telegramId}`;
+  // ✅ Format natif t.me/BOT/SHORTNAME?startapp=ID — transmet start_param correctement
+  const inviteLink = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}?startapp=${telegramId}`;
 
-  await ctx.reply(
+  ctx.reply(
     `🔗 *Ton lien de parrainage personnel :*\n\n${inviteLink}\n\n` +
-      `Quand un ami clique ce lien :\n` +
-      `1️⃣ Il arrive sur le bot et voit le message de bienvenue\n` +
-      `2️⃣ Il clique sur "🚀 Lancer PEPE MINE"\n` +
-      `3️⃣ La Mini App s'ouvre et ton parrainage est enregistré ✅\n\n` +
-      `Tu gagnes :\n` +
+      `Partage-le et gagne :\n` +
       `• 20% sur le minage de tes filleuls directs\n` +
       `• 10% sur le minage de leurs filleuls\n` +
       `• 5% sur le niveau suivant`,
@@ -88,12 +68,11 @@ bot.command("invite", async (ctx) => {
   );
 });
 
-bot.command("balance", async (ctx) => {
-  const miniAppUrl = `https://t.me/${BOT_USERNAME}/${APP_SHORT_NAME}`;
-  await ctx.reply(
+bot.command("balance", (ctx) => {
+  ctx.reply(
     `💰 Pour voir ton solde en temps réel, ouvre l'application :`,
     Markup.inlineKeyboard([
-      Markup.button.webApp("📊 Voir mon solde", miniAppUrl),
+      Markup.button.webApp("📊 Voir mon solde", WEBAPP_URL),
     ])
   );
 });
