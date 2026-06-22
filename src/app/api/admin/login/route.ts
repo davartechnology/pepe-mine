@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { signAdminSession, ADMIN_COOKIE_NAME } from "@/lib/admin-auth";
+import { signAdminSession } from "@/lib/admin-auth";
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,18 +31,8 @@ export async function POST(req: NextRequest) {
       role: admin.role,
     });
 
-    const isProduction = process.env.NODE_ENV === "production";
-
-    const res = NextResponse.json({ success: true, role: admin.role });
-    res.cookies.set(ADMIN_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: "strict",
-      maxAge: 7 * 24 * 60 * 60,
-      path: "/",
-    });
-
-    return res;
+    // On retourne le token directement — stocké en localStorage côté client
+    return NextResponse.json({ success: true, role: admin.role, token });
   } catch (err: any) {
     console.error("Erreur admin login:", err.message);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

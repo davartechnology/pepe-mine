@@ -2,13 +2,11 @@ import jwt from "jsonwebtoken";
 import { NextRequest } from "next/server";
 import { prisma } from "./prisma";
 
-interface AdminSession {
+export interface AdminSession {
   adminId: string;
   telegramId: string;
   role: "SUPER_ADMIN" | "CO_ADMIN";
 }
-
-const COOKIE_NAME = "admin_session";
 
 export function signAdminSession(payload: AdminSession): string {
   const secret = process.env.ADMIN_JWT_SECRET;
@@ -22,19 +20,23 @@ export function verifyAdminToken(token: string): AdminSession {
   return jwt.verify(token, secret) as AdminSession;
 }
 
-export const ADMIN_COOKIE_NAME = COOKIE_NAME;
+export const ADMIN_COOKIE_NAME = "admin_session";
 
 /**
- * Récupère et vérifie la session admin depuis les cookies d'une requête API.
- * Lance une erreur si non authentifié.
+ * Vérifie le token JWT depuis le header Authorization: Bearer <token>
+ * ou depuis localStorage (passé dans X-Admin-Token)
  */
 export async function requireAdmin(req: NextRequest): Promise<AdminSession> {
-  const token = req.cookies.get(COOKIE_NAME)?.value;
+  // Cherche le token dans Authorization header ou X-Admin-Token header
+  const authHeader = req.headers.get("Authorization");
+  const xToken = req.headers.get("X-Admin-Token");
+
+  const token = authHeader?.replace("Bearer ", "") || xToken;
+
   if (!token) throw new Error("Non authentifié");
 
   const session = verifyAdminToken(token);
 
-  // Vérifie que l'admin existe toujours en base (au cas où il aurait été retiré entre temps)
   const admin = await prisma.admin.findUnique({ where: { id: session.adminId } });
   if (!admin) throw new Error("Session invalide");
 

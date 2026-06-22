@@ -1,14 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [telegramId, setTelegramId] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Si déjà connecté, redirige vers le dashboard
+    const token = localStorage.getItem("admin_token");
+    if (token) {
+      window.location.href = "/admin";
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,15 +33,27 @@ export default function AdminLoginPage() {
 
       if (!res.ok) {
         setError(data.error || "Erreur de connexion");
+        setLoading(false);
         return;
       }
 
-      router.push("/admin");
+      // Stocke le token en localStorage
+      localStorage.setItem("admin_token", data.token);
+      localStorage.setItem("admin_role", data.role);
+
+      window.location.href = "/admin";
     } catch {
       setError("Erreur réseau");
-    } finally {
       setLoading(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-black flex items-center justify-center">
+        <p className="text-green-400">Chargement...</p>
+      </main>
+    );
   }
 
   return (
