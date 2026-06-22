@@ -31,11 +31,13 @@ export async function POST(req: NextRequest) {
       role: admin.role,
     });
 
+    const isProduction = process.env.NODE_ENV === "production";
+
     const res = NextResponse.json({ success: true, role: admin.role });
     res.cookies.set(ADMIN_COOKIE_NAME, token, {
       httpOnly: true,
-      secure: true,
-      sameSite: "lax",
+      secure: isProduction,
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60,
       path: "/",
     });
