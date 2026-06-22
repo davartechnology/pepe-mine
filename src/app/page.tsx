@@ -35,17 +35,18 @@ export default function Home() {
       tg.expand();
       setInitData(tg.initData);
 
-      // Le start_param "officiel" de Telegram (fonctionne uniquement pour les liens
-      // t.me/bot/appname?startapp=xxx natifs)
       const startParamOfficial = tg.initDataUnsafe?.start_param;
 
-      // Fallback : on lit directement le paramètre dans l'URL de la page,
-      // car notre bot construit le lien manuellement avec ?startapp=xxx
       const urlParams = new URLSearchParams(window.location.search);
       const startParamFromUrl =
         urlParams.get("startapp") || urlParams.get("tgWebAppStartParam");
 
       const referralCode = startParamOfficial || startParamFromUrl || undefined;
+
+      console.log("DEBUG - start_param officiel:", startParamOfficial);
+      console.log("DEBUG - startapp depuis URL:", startParamFromUrl);
+      console.log("DEBUG - referralCode final:", referralCode);
+      console.log("DEBUG - URL complète:", window.location.href);
 
       authenticate(tg.initData, referralCode);
     } else {
@@ -181,7 +182,7 @@ export default function Home() {
               ? "Minage en cours..."
               : cooldownMs > 0
               ? `⏱ ${formatCooldown(cooldownMs)}`
-              : "⛏️ Reclamer 200 PEPE"}
+              : "⛏️ Miner 200 PEPE"}
           </button>
 
           {message && (

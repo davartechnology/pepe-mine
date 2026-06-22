@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 export async function POST(req: NextRequest) {
   try {
     const { initData, referralCode } = await req.json();
+    console.log("DEBUG AUTH - referralCode reçu:", referralCode);
 
     if (!initData) {
       return NextResponse.json({ error: "initData manquant" }, { status: 400 });
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
       remainingCooldownMs = Math.max(0, cooldownEnd - Date.now());
     }
 
-    return NextResponse.json({ user, remainingCooldownMs, claimAmount: settings?.claimAmount ?? 200 });
+    return NextResponse.json({ user, remainingCooldownMs, claimAmount: settings?.claimAmount ?? 350 });
   } catch (err: any) {
     console.error("Erreur auth:", err.message);
     return NextResponse.json({ error: err.message }, { status: 401 });
